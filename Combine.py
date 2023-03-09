@@ -1,46 +1,49 @@
 import cv2
 import numpy as np
 
-from pyfirmata import Arduino, SERVO
+from pyfirmata import Arduino, SERVO, OUTPUT
 from time import sleep
 
 ################################
-wCam, hCam = 1280, 960
-###### Setup For arduino
+#           width 1280
+# .--------------------------------.#
+# .                                .#
+# .                                .#
+# .                                .#
+# .           Our video            .#   height 720
+# .                                .#
+# .                                .#
+# .                                .#
+# .                                .#
+# .--------------------------------.#
+#################################
+
+wCam, hCam = 1280, 720
+# Setup For arduino
 
 port = 'COM3'
-pin1 = 3  # X
-pin2 = 4  # Y
+# pin1 = 3  # X
+# pin2 = 4  # Y
+pinTest = 5  # >>> Test Pini LED
 board = Arduino(port)
-board.digital[pin2].mode = SERVO
-board.digital[pin1].mode = SERVO
+# board.digital[pin2].mode = SERVO
+# board.digital[pin1].mode = SERVO
+board.digital[pinTest].mode = OUTPUT
 
-def rotateservo(pin,angle):
+
+def rotateservo(pin, angle):
     board.digital[pin].write(angle)
     sleep(0.015)
 
-    #SET to start position
-rotateservo(pin1,90)
-rotateservo(pin2,90)
 
-# for i in range(0, 181):
-#     rotateservo(pin1, i)
-#     rotateservo(pin2, i)
-#
-# for i in range(180, -1,-1):
-#     rotateservo(pin1, i)
-#     rotateservo(pin2, i)
-#######
-#capture the video from camera
+# SET to start position
+# rotateservo(pin1, 90)
+# rotateservo(pin2, 90)
+
+# capture the video from camera
 cap = cv2.VideoCapture(0)
 cap.set(3, wCam)
 cap.set(4, hCam)
-pTime = 0
-
-
-k = np.ones((3, 3), np.uint8)
-t0 = cap.read()[1]
-t1 = cap.read()[1]
 
 face_cascade = cv2.CascadeClassifier('dnn_model\\face.xml')
 
@@ -48,37 +51,39 @@ while True:
     ret1, frames = cap.read()
     gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY)
 
-    # gray_flip =cv2.flip(gray,-1)
-    # cv2.imshow("gray",gray_flip)
-
     face = faces_cascade = face_cascade.detectMultiScale(gray, 1.1, 5)
-
-
 
     for (x, y, w, h) in face:
         cv2.rectangle(frames, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-    # frames = cv2.flip(frames, -1)
-    frames = cv2.flip(frames,1)
 
+    # Vertical data is unnecessary for a moment
+    # Center point of main frame
+    center_pointX, center_pointY = wCam / 2, hCam / 2
 
-    # for (x, y, w, h) in face:
-    #     cv2.putText(frames, "face", (x, y - 10), cv2.FONT_HERSHEY_PLAIN, 3, (200, 0, 50), 2)
+    # Points of center rectangle
+    point1 = int(center_pointX) - 100, int(center_pointY) - 100
+    point2 = int(center_pointX) + 100, int(center_pointY) + 100
+    cv2.rectangle(frames, point1, point2, (255, 0, 0), 3)
 
-    d = cv2.absdiff(t1, t0)
+    for (x, y, w, h) in face:
+        # Center point of rectangle
+        regCenterX, regCenterY =(x+ (x + w))/ 2,(y + (y + h)) / 2
+        # Algılanan nesnenin merkez noktasına uzaklığı
+        merkeze_uzaklikX, merkeze_uzaklikY = regCenterX - center_pointX, regCenterY - center_pointY
 
-    ## Servonun 0/180 derece aralığı için aldığımız görüntünün piksel miktarı orantısı hesabı >> Yeniden hesaplanması gerekiyor
-    anglex = x * 180 / wCam
-    angley = y * 180 / hCam
-    ## Merkezden uzaklığına göre halledilecek bir dahakinde
+        if regCenterX > (center_pointX - 100) and regCenterX < (center_pointX + 100):
+            board.digital[pinTest].write(1)
+        else:
+            board.digital[pinTest].write(0)
+            # rotateservo(pin1, #)
+            # rotateservo(pin2, #)
 
-    rotateservo(pin1, angley)
-    rotateservo(pin2, anglex)
+    # ...
+    # Flip the frames for mirror effect
+    frames = cv2.flip(frames, 1)
 
-    t2 = frames
-    cv2.imshow('Output', t2)
-    t0 = t1
-    t1 = cap.read()[1]
+    cv2.imshow('Output', frames)
 
     if cv2.waitKey(33) == 27:
         break
