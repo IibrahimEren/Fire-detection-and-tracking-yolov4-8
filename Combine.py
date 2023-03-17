@@ -30,12 +30,17 @@ board = Arduino(port)
 MAX_artis = 45
 
 start_pos = 90
-new = start_pos  # for the first frame
+newX = start_pos  # for the first frame
+# sonrasında newY de olmalı
 
 board.digital[pin2].mode = SERVO  # Y
 board.digital[pin1].mode = SERVO  # X
-board.digital[pinTest].mode = OUTPUT  # LED
+# board.digital[pinTest].mode = OUTPUT  # LED
 board.digital[pinPipe].mode = OUTPUT  # MOTOR
+
+# SET relay to start position
+board.digital[pinPipe].write(1)  # bir olduğunda kapalı bir şekilde başlatıyor
+board.digital[pinTest].write(0)
 
 
 # kameradan alınan verinin hangi piksel üzerinde olduğuna göre hesaplanmış
@@ -44,6 +49,10 @@ def rotateservo(pin, angle):
     board.digital[pin].write(angle)
     sleep(0.015)
 
+
+# SET servos to start position
+rotateservo(pin1, start_pos)
+rotateservo(pin2, start_pos)
 
 # Hedef görmediği anlarda etrafı taraması için fonksiyon
 # def scanArea(pin, current):
@@ -54,9 +63,6 @@ def rotateservo(pin, angle):
 #             if bool == True:
 #                 break
 
-# SET servos to start position
-rotateservo(pin1, start_pos)
-rotateservo(pin2, start_pos)
 
 # capture the video from camera
 cap = cv2.VideoCapture(0)
@@ -73,7 +79,7 @@ while True:
 
     for (x, y, w, h) in face:
         cv2.rectangle(frames, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        print(face)
+        # print(face)
 
     # Vertical data is unnecessary for a moment
     # Center point of main frame
@@ -91,13 +97,21 @@ while True:
         merkeze_uzaklikX, merkeze_uzaklikY = regCenterX - center_pointX, regCenterY - center_pointY
 
         if (center_pointX - 100) < regCenterX < (center_pointX + 100):
-            board.digital[pinTest].write(1)
+            board.digital[pinPipe].write(0)  # 0 Olduğunda kapatıyor ve motorun çalışmasını sağlıyor
         else:
-            board.digital[pinTest].write(0)
-            value = merkeze_uzaklikX * MAX_artis / center_pointX
-            new = new + value  # from start point to new point with value increase
-            rotateservo(pin1, new)
-            rotateservo(pin2, new)
+            board.digital[pinPipe].write(1)
+            valueX = merkeze_uzaklikX * MAX_artis / center_pointX
+            valueY = merkeze_uzaklikX * MAX_artis / center_pointX
+            newX = newX + valueX/2  # from start point to new point with value increase
+            if newX > 180:
+                newX = 180
+            #- kısma düşüyor
+            if newX < 10:
+                newX = 0
+
+            print(newX)
+            rotateservo(pin1, newX)
+            # rotateservo(pin2, new)
 
     # ...
     # Flip the frames for mirror effect
@@ -106,6 +120,10 @@ while True:
     cv2.imshow('Output', frames)
 
     if cv2.waitKey(33) == 27:
+        rotateservo(pin1, start_pos)
+        rotateservo(pin2, start_pos)
+        board.digital[pinPipe].write(1)
+        board.digital[pinTest].write(0)
         break
 
 cv2.destroyAllWindows()
