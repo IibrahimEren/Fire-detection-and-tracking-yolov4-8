@@ -4,19 +4,39 @@ import cv2
 from pyfirmata import Arduino, SERVO, OUTPUT
 
 
-################################
-#           width 1280
-# .--------------------------------.#
-# .                                .#
-# .                                .#
-# .                                .#
-# .           Our video            .#   height 720
-# .                                .#
-# .                                .#
-# .                                .#
-# .                                .#
-# .--------------------------------.#
-#################################
+# import argparse
+
+# NOT REQUIRED FOR NOW
+# construct the argument parse and parse the arguments
+# ap = argparse.ArgumentParser()
+# ap.add_argument("-y", "--yolo", required=True,
+#                 help="base path to YOLO directory")
+# ap.add_argument("-i", "--input", type=str, default="",
+#                 help="path to (optional) input video file")
+# ap.add_argument("-o", "--output", type=str, default="",
+#                 help="path to (optional) output video file")
+# ap.add_argument("-d", "--display", type=int, default=1,
+#                 help="whether output frame should be displayed")
+# ap.add_argument("-c", "--confidence", type=float, default=0.5,
+#                 help="minimum probability to filter weak detections")
+# ap.add_argument("-t", "--threshold", type=float, default=0.3,
+#                 help="threshold when applyong non-maxima suppression")
+# ap.add_argument("-u", "--use-gpu", type=bool, default=0,
+#                 help="boolean indicating if CUDA GPU should be used")
+# args = vars(ap.parse_args())
+
+'''''       width 1280
+.--------------------------------.#
+.                                .#
+.                                .#
+.                                .#
+.           Our video            .# height 720
+.                                .#
+.                                .#
+.                                .#
+.                                .#
+.--------------------------------.#
+'''''
 
 
 # kameradan alınan verinin hangi piksel üzerinde olduğuna göre hesaplanmış
@@ -26,63 +46,62 @@ def rotateservo(pin, angle):
     sleep(0.015)
 
 
-#
-#
-# Hedef görmediği anlarda etrafı taraması için fonksiyon >> YOLOV'a göre yeniden düzenlenilmesi gerekiyor
-# def scanArea(pin1, current):
+# #
+# # Hedef görmediği anlarda etrafı taraması için fonksiyon >> YOLOV'a göre yeniden düzenlenilmesi gerekiyor
+# def scanArea(pinX, current):
 #     for i in range(current, 180):
 #         for i in range(180, 0):
-#             board.digital[pin1].write(i)
+#             board.digital[pinX].write(i)
 #             # Hedef gördüğü an döngüden çıkması için if bloğu
 #             if len(fire) != 0:
 #                 break
-#
 
-#
-#
+# #
 port = 'COM3'
-pin1 = 3  # X
-pin2 = 4  # Y
-pinTest = 5  # >>> Test Pini LED
-pinPipe = 6  # For water motor
 board = Arduino(port)
+pinX = 3  # X
+pinY = 4  # Y
+pinPipe = 5  # For water motor
+# #
+board.digital[pinPipe].mode = OUTPUT  # MOTOR
+board.digital[pinY].mode = SERVO  # Y
+board.digital[pinX].mode = SERVO  # X
 #
 MAX_artis = 45
 start_posX = 90
 start_posY = 0
 newX = start_posX  # for the first frame
 newY = start_posY
+# #
+# # SET relay to start position
+print("preparing relay")
+board.digital[pinPipe].write(1)  # bir olduğunda kapalı bir şekilde başlatıyor
 #
-board.digital[pin2].mode = SERVO  # Y
-board.digital[pin1].mode = SERVO  # X
-board.digital[pinTest].mode = OUTPUT  # LED >> **Led motorla birlikte aynı pine bağlanılabilir
-board.digital[pinPipe].mode = OUTPUT  # MOTOR
-
-# SET relay to start position
-board.digital[pinPipe].write(0)  # bir olduğunda kapalı bir şekilde başlatıyor
-board.digital[pinTest].write(0)
-
-# SET servos to start position
-rotateservo(pin1, start_posX)
-rotateservo(pin2, start_posY)
-
-board.digital[pin2].mode = SERVO  # Y
-board.digital[pin1].mode = SERVO  # X
-board.digital[pinTest].mode = OUTPUT  # LED
-board.digital[pinPipe].mode = OUTPUT  # MOTOR
-
-# SET relay to start position
-board.digital[pinPipe].write(0)  # bir olduğunda kapalı bir şekilde başlatıyor
-board.digital[pinTest].write(0)
-
-# SET servos to start position
-rotateservo(pin1, start_posX)
-rotateservo(pin2, start_posY)
-# FPS values for launch
+# # SET servos to start position
+print("Set servos to start positions")
+rotateservo(pinX, start_posX)
+rotateservo(pinY, start_posY)
+#
+########### SERVO QUALITY TESTING ################
+# while True:
+#     for i in range(0, 180, 5):
+#         rotateservo(pinX, i)
+#         rotateservo(pinY, i)
+#     sleep(2)
+#     for i in range(180, 0, -5):
+#         rotateservo(pinX, i)
+#         rotateservo(pinY, i)
+#     sleep(2)
+##################################################
+# FPS values for fps testing
 pre_timeFrame = 0
 new_timeFrame = 0
 # Pretrained model for FIRE
 model = cv2.dnn.readNetFromDarknet("dnn_model/spot_yolov4.cfg", "dnn_model/spot_yolov4_last.weights")
+# set CUDA as the preferable backend and target
+print("[INFO] setting preferable backend and target to CUDA...")
+model.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+model.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 #
 labels = ["fire"]
 colors = ["0,0,255"]
@@ -91,30 +110,29 @@ colors = np.array(colors)
 #
 cap = cv2.VideoCapture(0)
 wCam, hCam = 1280, 720
-
 cap.set(3, wCam)
 cap.set(4, hCam)
-
 # Center point of main frame
 center_pointX, center_pointY = wCam / 2, hCam / 2
-while True:
-    ret, frame = cap.read()
-    frame = cv2.flip(frame, 1)
+# Points of center rectangle
+point1 = int(center_pointX) - 80, int(center_pointY) - 80
+point2 = int(center_pointX) + 80, int(center_pointY) + 80
 
-    # Points of center rectangle
-    point1 = int(center_pointX) - 80, int(center_pointY) - 80
-    point2 = int(center_pointX) + 80, int(center_pointY) + 80
-    cv2.rectangle(frame, point1, point2, (255, 0, 0), 3)
+while True:
+    success, frame = cap.read()
+    #   check the video sources
+    if not success:
+        break
+    frame = cv2.flip(frame, 1)
 
     frame_width = frame.shape[1]
     frame_height = frame.shape[0]
 
     frame_blob = cv2.dnn.blobFromImage(frame, 1 / 255, (416, 416), swapRB=True, crop=False)
+    model.setInput(frame_blob)
 
     layers = model.getLayerNames()
     output_layer = [layers[layer - 1] for layer in model.getUnconnectedOutLayers()]
-    model.setInput(frame_blob)
-
     detection_layers = model.forward(output_layer)
 
     ############## NON-MAXIMUM SUPPRESSION - OPERATION 1 ###################
@@ -130,7 +148,7 @@ while True:
             predicted_id = np.argmax(scores)
             confidence = scores[predicted_id]
 
-            if confidence > 0.20:
+            if confidence > 0.50:
                 label = labels[predicted_id]
                 bounding_box = object_detection[0:4] * np.array([frame_width, frame_height, frame_width, frame_height])
                 (box_center_x, box_center_y, box_width, box_height) = bounding_box.astype("int")
@@ -159,7 +177,7 @@ while True:
         predicted_id = ids_list[max_class_id]
         label = labels[predicted_id]
         confidence = confidences_list[max_class_id]
-    ############################ END OF OPERATION 3 ########################
+        ############################ END OF OPERATION 3 ########################
 
         end_x = start_x + box_width
         end_y = start_y + box_height
@@ -171,40 +189,56 @@ while True:
         ############
         # Algılanan nesnenin merkez noktasına uzaklığı
         merkeze_uzaklikX, merkeze_uzaklikY = box_center_x - center_pointX, box_center_y - center_pointY
-    ######### CONTROL OF  THE OBJECT IS INSIDE OF THE BOX OR NOT ################################
+
+        ######### CONTROL OF  THE OBJECT IS INSIDE OF THE BOX OR NOT ################################
         if (center_pointX - 80) < box_center_x < (center_pointX + 80):
             if (center_pointY - 80) < box_center_y < (center_pointY + 80):
                 print("1")
                 board.digital[pinPipe].write(0)  # 0 Olduğunda kapatıyor ve motorun çalışmasını sağlıyor
-    ############################# END OF CONTROL ################################################
+        ############################# END OF CONTROL ################################################
 
-    ################## CALCULATING NEW VALUES OF SERVOS MOVEMENT TO GET OBJECT INSIDE THE BOX ###############
+        ################## CALCULATING NEW VALUES OF SERVOS MOVEMENT TO GET OBJECT INSIDE THE BOX ###############
         else:
-            print("0")
+            print("0____________ " +str(ids_list.__len__()) )
             board.digital[pinPipe].write(1)
             # We may want to reduce to amount of increase and decrease
             valueX = merkeze_uzaklikX * MAX_artis / center_pointX
-            valueY = merkeze_uzaklikX * MAX_artis / center_pointX
-            newX = newX - valueX / 5  # from start point to new point with value increase -
-            newY = newY - valueY / 5  # from start point to new point with value increase -
+            valueY = merkeze_uzaklikY * MAX_artis / center_pointY
+            newX = newX + valueX / 5  # from start point to new point with value increase -
+            newY = newY - valueY / 2  # from start point to new point with value increase -
             if newX > 180:
+                print("newX: " + str(newX))
                 newX = 180
             # - kısma düşüyor
             if newX < 10:
+                print("newX: " + str(newX))
                 newX = 0
             if newY > 180:
+                print("newY: " + str(newY))
                 newY = 180
             # - kısma düşüyor
             if newY < 10:
+                print("newY: " + str(newY))
                 newY = 0
             # Kameranın x ve y koordinatlarındaki takibi
-            rotateservo(pin1, newX)
-            rotateservo(pin2, newY)
+            # rotateservo(pinX, newX)
+            # rotateservo(pinY, newY)
         ############################# END OF CALCULATING ################################################
 
+        #   Draw a rectangle on the frame for detected object
         cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), box_color, 2)
+        #   Draw a rectangle for features
         cv2.rectangle(frame, (start_x - 1, start_y), (end_x + 1, start_y - 30), box_color, -1)
+        #   Write the confidence value above the object
         cv2.putText(frame, label, (start_x, start_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+####################### CHECKING IF FRAME HAS A OBJECT ##########################################
+    if ids_list.__len__() == 0:  # if frame has no object close the engine
+        board.digital[pinPipe].write(1)
+############################## END OF CHECKING ##################################################
+
+    #   Draw a rectangle in the center of window for targeting
+    cv2.rectangle(frame, point1, point2, (255, 0, 0), 3)
 
     ################ FRAME TESTING ###########################
     new_timeFrame = time()
@@ -215,8 +249,10 @@ while True:
     ################ END OF TESTING ##########################
 
     if cv2.waitKey(1) == 27:
+        rotateservo(pinX, start_posX)
+        rotateservo(pinY, start_posY)
+        board.digital[pinPipe].write(1)  # it can be change depends on how you wire the role
         break
-
     cv2.imshow("Detector", frame)
 
 # %%
