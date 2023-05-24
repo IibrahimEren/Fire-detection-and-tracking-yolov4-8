@@ -25,17 +25,19 @@ from pyfirmata import Arduino, SERVO, OUTPUT
 #                 help="boolean indicating if CUDA GPU should be used")
 # args = vars(ap.parse_args())
 
-'''''       width 1280
-.--------------------------------.#
-.                                .#
-.                                .#
-.                                .#
-.           Our video            .# height 720
-.                                .#
-.                                .#
-.                                .#
-.                                .#
-.--------------------------------.#
+'''''       
+           width 1280
+.________________________________.
+.                                .
+.                                .
+.                                .
+.           Our video            . height 720
+.                                .
+.                                .
+.                                .
+.                                .
+.________________________________.
+
 '''''
 
 
@@ -45,78 +47,79 @@ def rotateservo(pin, angle):
     board.digital[pin].write(angle)
     sleep(0.015)
 
-
-# #
-# # Hedef görmediği anlarda etrafı taraması için fonksiyon >> YOLOV'a göre yeniden düzenlenilmesi gerekiyor
+# Hedef görmediği anlarda etrafı taraması için fonksiyon >> YOLOV'a göre yeniden düzenlenilmesi gerekiyor
 # def scanArea(pinX, current):
 #     for i in range(current, 180):
 #         for i in range(180, 0):
 #             board.digital[pinX].write(i)
 #             # Hedef gördüğü an döngüden çıkması için if bloğu
-#             if len(fire) != 0:
+#             if ids_list.__len__() != 0:
 #                 break
 
-# #
+
 port = 'COM3'
 board = Arduino(port)
 pinX = 3  # X
 pinY = 4  # Y
 pinPipe = 5  # For water motor
-# #
+
 board.digital[pinPipe].mode = OUTPUT  # MOTOR
 board.digital[pinY].mode = SERVO  # Y
 board.digital[pinX].mode = SERVO  # X
-#
+
 MAX_artis = 45
 start_posX = 90
 start_posY = 0
 newX = start_posX  # for the first frame
 newY = start_posY
-# #
-# # SET relay to start position
+
+# SET relay to start position
 print("preparing relay")
 board.digital[pinPipe].write(1)  # bir olduğunda kapalı bir şekilde başlatıyor
-#
-# # SET servos to start position
-print("Set servos to start positions")
-rotateservo(pinX, start_posX)
-rotateservo(pinY, start_posY)
-#
-########### SERVO QUALITY TESTING ################
-# while True:
-#     for i in range(0, 180, 5):
-#         rotateservo(pinX, i)
-#         rotateservo(pinY, i)
-#     sleep(2)
-#     for i in range(180, 0, -5):
-#         rotateservo(pinX, i)
-#         rotateservo(pinY, i)
-#     sleep(2)
-##################################################
+
 # FPS values for fps testing
 pre_timeFrame = 0
 new_timeFrame = 0
+
 # Pretrained model for FIRE
 model = cv2.dnn.readNetFromDarknet("dnn_model/spot_yolov4.cfg", "dnn_model/spot_yolov4_last.weights")
+
 # set CUDA as the preferable backend and target
 print("[INFO] setting preferable backend and target to CUDA...")
 model.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 model.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-#
+
 labels = ["fire"]
 colors = ["0,0,255"]
 colors = [np.array(color.split(",")).astype("int") for color in colors]
 colors = np.array(colors)
-#
+
 cap = cv2.VideoCapture(0)
 wCam, hCam = 1280, 720
 cap.set(3, wCam)
 cap.set(4, hCam)
+
 # Center point of main frame
 center_pointX, center_pointY = wCam / 2, hCam / 2
+
 # Points of center rectangle
 point1 = int(center_pointX) - 80, int(center_pointY) - 80
 point2 = int(center_pointX) + 80, int(center_pointY) + 80
+
+##### REBOOTING #####
+print("REBOOTING")
+for i in range(0, 180, 5):
+    rotateservo(pinX, i)
+    rotateservo(pinY, i)
+for i in range(180, 0, -5):
+    rotateservo(pinX, i)
+    rotateservo(pinY, i)
+#### END OF REBOOTING #####
+
+# SET servos to start position
+print("Set servos to start positions")
+rotateservo(pinX, start_posX)
+rotateservo(pinY, start_posY)
 
 while True:
     success, frame = cap.read()
@@ -177,7 +180,7 @@ while True:
         predicted_id = ids_list[max_class_id]
         label = labels[predicted_id]
         confidence = confidences_list[max_class_id]
-        ############################ END OF OPERATION 3 ########################
+    ######################## END OF OPERATION 3 ############################
 
         end_x = start_x + box_width
         end_y = start_y + box_height
@@ -186,26 +189,25 @@ while True:
         box_color = [int(each) for each in box_color]
 
         label = "{}: {:.2f}%".format(label, confidence * 100)
-        ############
+
         # Algılanan nesnenin merkez noktasına uzaklığı
         merkeze_uzaklikX, merkeze_uzaklikY = box_center_x - center_pointX, box_center_y - center_pointY
 
         ######### CONTROL OF  THE OBJECT IS INSIDE OF THE BOX OR NOT ################################
-        if (center_pointX - 80) < box_center_x < (center_pointX + 80):
-            if (center_pointY - 80) < box_center_y < (center_pointY + 80):
-                print("1")
-                board.digital[pinPipe].write(0)  # 0 Olduğunda kapatıyor ve motorun çalışmasını sağlıyor
+        if (center_pointX - 80) < box_center_x < (center_pointX + 80) and (center_pointY - 80) < box_center_y < (center_pointY + 80):
+            print("1")
+            board.digital[pinPipe].write(0)  # 0 Olduğunda kapatıyor ve motorun çalışmasını sağlıyor
         ############################# END OF CONTROL ################################################
 
         ################## CALCULATING NEW VALUES OF SERVOS MOVEMENT TO GET OBJECT INSIDE THE BOX ###############
         else:
-            print("0____________ " +str(ids_list.__len__()) )
             board.digital[pinPipe].write(1)
+
             # We may want to reduce to amount of increase and decrease
             valueX = merkeze_uzaklikX * MAX_artis / center_pointX
             valueY = merkeze_uzaklikY * MAX_artis / center_pointY
-            newX = newX + valueX / 5  # from start point to new point with value increase -
-            newY = newY - valueY / 2  # from start point to new point with value increase -
+            newX = newX + valueX / 4  # from start point to new point with value increase -
+            newY = newY - valueY / 4  # from start point to new point with value increase -
             if newX > 180:
                 print("newX: " + str(newX))
                 newX = 180
@@ -217,12 +219,12 @@ while True:
                 print("newY: " + str(newY))
                 newY = 180
             # - kısma düşüyor
-            if newY < 10:
+            if newY < 5:
                 print("newY: " + str(newY))
                 newY = 0
             # Kameranın x ve y koordinatlarındaki takibi
-            # rotateservo(pinX, newX)
-            # rotateservo(pinY, newY)
+        rotateservo(pinX, newX)
+        rotateservo(pinY, newY)
         ############################# END OF CALCULATING ################################################
 
         #   Draw a rectangle on the frame for detected object
@@ -248,13 +250,20 @@ while True:
     cv2.putText(frame, "FPS: " + str(fps), (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 0), 2)
     ################ END OF TESTING ##########################
 
-    if cv2.waitKey(1) == 27:
+    if cv2.waitKey(33) == ord('r'):
+        print("Return to start position")
+        rotateservo(pinX, start_posX)
+        rotateservo(pinY, start_posY)
+        board.digital[pinPipe].write(1)
+        newX = start_posX
+        newY = start_posY
+    elif cv2.waitKey(1) == 27:
         rotateservo(pinX, start_posX)
         rotateservo(pinY, start_posY)
         board.digital[pinPipe].write(1)  # it can be change depends on how you wire the role
         break
+
     cv2.imshow("Detector", frame)
 
-# %%
 cap.release()
 cv2.destroyAllWindows()
