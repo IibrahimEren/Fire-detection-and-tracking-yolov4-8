@@ -2,6 +2,12 @@
 
 This project is an implementation of real-time object detection and tracking using YOLO (You Only Look Once) deep learning model along with servo motor control. The system detects objects, specifically "fire," in the video stream from a webcam and adjusts the position of the servo motors to track the detected object.
 
+
+
+https://github.com/IibrahimEren/Servo-motor-controlling-with-python-Object-Detection-/assets/87008174/c0e7fd7b-3de0-4346-8b68-402b604a9d5a
+
+
+
 ### Hardware Requirements:
 - Arduino Board with Servo Motors and Water Pump Motor
 - Webcam (or any video source)
@@ -39,5 +45,3 @@ The script `object_tracking.py` performs the following tasks:
 - The code is designed to track "fire" objects. You can modify the code to detect and track other objects by using different pre-trained YOLO models and updating the labels accordingly.
 - Make sure the Arduino is correctly wired with the servo motors and water pump motor.
 - Adjust the servo motor pins (pinX and pinY) in the code according to your setup.
-
-Feel free to modify and extend this code according to your needs. Happy coding!
