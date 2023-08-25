@@ -4,7 +4,11 @@ This project is an implementation of real-time object detection and tracking usi
 
 
 
-https://github.com/IibrahimEren/Servo-motor-controlling-with-python-Object-Detection-/assets/87008174/c0e7fd7b-3de0-4346-8b68-402b604a9d5a
+
+
+https://github.com/IibrahimEren/Servo-motor-controlling-with-python-Object-Detection-/assets/87008174/cc4dd1ce-a6a8-472c-84ea-9a1167fffa1a
+
+
 
 
 
