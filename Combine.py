@@ -3,28 +3,6 @@ from time import time, sleep
 import cv2
 from pyfirmata import Arduino, SERVO, OUTPUT
 
-
-# import argparse
-
-# NOT REQUIRED FOR NOW
-# construct the argument parse and parse the arguments
-# ap = argparse.ArgumentParser()
-# ap.add_argument("-y", "--yolo", required=True,
-#                 help="base path to YOLO directory")
-# ap.add_argument("-i", "--input", type=str, default="",
-#                 help="path to (optional) input video file")
-# ap.add_argument("-o", "--output", type=str, default="",
-#                 help="path to (optional) output video file")
-# ap.add_argument("-d", "--display", type=int, default=1,
-#                 help="whether output frame should be displayed")
-# ap.add_argument("-c", "--confidence", type=float, default=0.5,
-#                 help="minimum probability to filter weak detections")
-# ap.add_argument("-t", "--threshold", type=float, default=0.3,
-#                 help="threshold when applyong non-maxima suppression")
-# ap.add_argument("-u", "--use-gpu", type=bool, default=0,
-#                 help="boolean indicating if CUDA GPU should be used")
-# args = vars(ap.parse_args())
-
 '''''       
            width 1280
 .________________________________.
@@ -46,15 +24,6 @@ from pyfirmata import Arduino, SERVO, OUTPUT
 def rotateservo(pin, angle):
     board.digital[pin].write(angle)
     sleep(0.015)
-
-# Hedef görmediği anlarda etrafı taraması için fonksiyon >> YOLOV'a göre yeniden düzenlenilmesi gerekiyor
-# def scanArea(pinX, current):
-#     for i in range(current, 180):
-#         for i in range(180, 0):
-#             board.digital[pinX].write(i)
-#             # Hedef gördüğü an döngüden çıkması için if bloğu
-#             if ids_list.__len__() != 0:
-#                 break
 
 
 port = 'COM3'
